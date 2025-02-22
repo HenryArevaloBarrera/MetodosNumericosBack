@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+
+  punto_fijo:
+    build: ./Microservices/PuntoFijo
+    container_name: metodo_punto_fijo
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./Microservices/PuntoFijo:/app
+    restart: always
+    
+  biseccion:
+    build: ./Microservices/Biseccion
+    container_name: metodo_biseccion
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./Microservices/Biseccion:/app
+    restart: always
+
+  
