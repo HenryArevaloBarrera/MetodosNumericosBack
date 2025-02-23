@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
 from sympy import symbols
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 # Transformaciones para permitir multiplicación implícita (por ejemplo, 2x en lugar de 2*x)
 transformations = (standard_transformations + (implicit_multiplication_application,))
@@ -26,7 +28,7 @@ def metodo_biseccion():
 
         # Inicializar variables
         nIteracion = 0
-        error = 1.0
+        error = 0.99
         panterior = 0
         pactual = 0
 
@@ -38,7 +40,7 @@ def metodo_biseccion():
         fxu = ecuacion.subs(x, xu)
 
         if fxo * fxu >= 0:
-            return jsonify({"error": "El intervalo [xo, xu] no cumple con f(xo) * f(xu) < 0."}), 400
+            return jsonify({"error": "En intervalo [xo, xu] no se encuentra la raiz de la ecuacion. \n El valor xo debe ser menor a xu"}), 400
 
         # Bucle del método de bisección
         while error >= tol_error:
