@@ -11,64 +11,77 @@ transformations = (standard_transformations + (implicit_multiplication_applicati
 
 @app.route('/biseccion', methods=['GET'])
 def metodo_biseccion():
-    # Obtener la ecuación, el intervalo [a, b] y la tolerancia del error desde la URL
-    ecuacion_str = request.args.get('ecuacion')
-    xo = request.args.get('xo', type=float)
-    xu = request.args.get('xu', type=float)
-    tol_error = request.args.get('tol_error', type=float)
-
-    # Verificar que todos los parámetros estén presentes
-    if not ecuacion_str or xo is None or xu is None or tol_error is None:
-        return jsonify({"error": "Debes proporcionar 'ecuacion', 'xo', 'xu' y 'tol_error' en los parámetros de la URL"}), 400
-
     try:
-        # Convertir la ecuación en una expresión simbólica
-        x = symbols('x')
-        ecuacion = parse_expr(ecuacion_str, transformations=transformations)
+        # Obtener los parámetros de la solicitud
+        ecuacion_str = request.args.get('ecuacion')
+        xo = request.args.get('xo', type=float)
+        xu = request.args.get('xu', type=float)
+        tol_error = request.args.get('tol_error', type=float)
 
-        # Inicializar variables
+        # Validar que todos los parámetros estén presentes
+        if ecuacion_str is None or xo is None or xu is None or tol_error is None:
+            return jsonify({"error": "Debes proporcionar 'ecuacion', 'xo', 'xu' y 'tol_error' en los parámetros de la URL."}), 400
+
+        # Validar que el intervalo sea correcto
+        if xo >= xu:
+            return jsonify({"error": "El valor de 'xo' debe ser menor que 'xu'."}), 400
+
+        # Validar que la tolerancia de error esté en el rango permitido
+        if tol_error < 1e-10 or tol_error > 0.999999:
+            return jsonify({"error": "El valor de 'tol_error' debe estar entre 0.0000000001 y 0.999999."}), 400
+
+        # Convertir la ecuación a una expresión simbólica
+        x = symbols('x')
+        try:
+            ecuacion = parse_expr(ecuacion_str, transformations=transformations)
+        except Exception as e:
+            return jsonify({"error": f"Error en la sintaxis de la ecuación: {str(e)}"}), 400
+
+        # Evaluar f(xo) y f(xu) para verificar si el intervalo es válido
+        try:
+            fxo = ecuacion.subs(x, xo)
+            fxu = ecuacion.subs(x, xu)
+        except Exception as e:
+            return jsonify({"error": f"Error al evaluar la ecuación: {str(e)}"}), 400
+
+        if fxo * fxu >= 0:
+            return jsonify({"error": "En el intervalo [xo, xu] no se encuentra la raiz de la ecuacion "}), 400
+
+        # Variables de iteración
         nIteracion = 0
         error = 0.99
         panterior = 0
         pactual = 0
-
-        # Lista para almacenar la tabla de iteraciones
         tabla = []
 
-        # Verificar que el intervalo cumpla con f(xo) * f(xu) < 0
-        fxo = ecuacion.subs(x, xo)
-        fxu = ecuacion.subs(x, xu)
-
-        if fxo * fxu >= 0:
-            return jsonify({"error": "En intervalo [xo, xu] no se encuentra la raiz de la ecuacion. \n El valor xo debe ser menor a xu"}), 400
-
-        # Bucle del método de bisección
+        # Algoritmo de bisección
         while error >= tol_error:
             nIteracion += 1
             panterior = pactual
             xm = (xo + xu) / 2  # Punto medio
             fxm = ecuacion.subs(x, xm)  # Evaluar la función en xm
-            fx1 = ecuacion.subs(x, xo)  # Evaluar la función en xo
+
+            # Guardar los valores previos de xo y xu
+            aux_xo, aux_xu = xo, xu
 
             # Actualizar el intervalo
-            if fx1 * fxm < 0:
-                aux=xo
-                aux1=xu
+            if ecuacion.subs(x, xo) * fxm < 0:
                 xu = xm
             else:
-                aux=xo
-                aux1=xu
                 xo = xm
 
-            # Calcular el error
+            # Calcular el error con prevención de división por cero
             pactual = xm
-            error = abs((pactual - panterior) / pactual)
+            if pactual != 0:
+                error = abs((pactual - panterior) / pactual)
+            else:
+                error = 0  # Si pactual es 0, evitamos división por 0
 
-            # Agregar los datos de la iteración a la tabla
+            # Agregar la iteración a la tabla de resultados
             tabla.append({
                 "nIteracion": nIteracion,
-                "xo": aux,
-                "xu": aux1,
+                "xo": aux_xo,
+                "xu": aux_xu,
                 "xm": xm,
                 "fxm": float(fxm),
                 "error": float(error)
@@ -78,7 +91,8 @@ def metodo_biseccion():
         return jsonify(tabla)
 
     except Exception as e:
-        return jsonify({"error": f"Error al procesar la ecuación: {str(e)}"}), 400
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5002)

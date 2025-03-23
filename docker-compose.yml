@@ -20,4 +20,39 @@ services:
       - ./Microservices/Biseccion:/app
     restart: always
 
-  
+  newton_raphson:
+    build: ./Microservices/NewtonRaphson
+    container_name: metodo_newton_raphson
+    ports:
+      - "5003:5000"
+    volumes:
+      - ./Microservices/NewtonRaphson:/app
+    restart: always
+
+  secante:
+    build: ./Microservices/Secante
+    container_name: metodo_secante
+    ports:
+      - "5004:5000"
+    volumes:
+      - ./Microservices/Secante:/app
+    restart: always
+
+  jacobi:
+    build: ./Microservices/Jacobi
+    container_name: metodo_jacobi
+    ports:
+      - "5005:5000"
+    volumes:
+      - ./Microservices/Jacobi:/app
+    restart: always
+
+  gauss_seidel:
+    build: ./Microservices/GaussSeidel
+    container_name: metodo_gauss_seidel
+    ports:
+      - "5006:5000"
+    volumes:
+      - ./Microservices/GaussSeidel:/app
+    restart: always
+
