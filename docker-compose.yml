@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.9'
 
 services:
 
@@ -6,7 +6,7 @@ services:
     build: ./Microservices/PuntoFijo
     container_name: metodo_punto_fijo
     ports:
-      - "5001:5000"
+      - "5001:5001"
     volumes:
       - ./Microservices/PuntoFijo:/app
     restart: always
@@ -15,7 +15,7 @@ services:
     build: ./Microservices/Biseccion
     container_name: metodo_biseccion
     ports:
-      - "5002:5000"
+      - "5002:5002"
     volumes:
       - ./Microservices/Biseccion:/app
     restart: always
@@ -24,7 +24,7 @@ services:
     build: ./Microservices/NewtonRaphson
     container_name: metodo_newton_raphson
     ports:
-      - "5003:5000"
+      - "5003:5003"
     volumes:
       - ./Microservices/NewtonRaphson:/app
     restart: always
@@ -33,7 +33,7 @@ services:
     build: ./Microservices/Secante
     container_name: metodo_secante
     ports:
-      - "5004:5000"
+      - "5004:5004"
     volumes:
       - ./Microservices/Secante:/app
     restart: always
@@ -42,7 +42,7 @@ services:
     build: ./Microservices/Jacobi
     container_name: metodo_jacobi
     ports:
-      - "5005:5000"
+      - "5005:5005"
     volumes:
       - ./Microservices/Jacobi:/app
     restart: always
@@ -51,7 +51,7 @@ services:
     build: ./Microservices/GaussSeidel
     container_name: metodo_gauss_seidel
     ports:
-      - "5006:5000"
+      - "5006:5006"
     volumes:
       - ./Microservices/GaussSeidel:/app
     restart: always

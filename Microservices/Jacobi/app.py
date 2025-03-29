@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import numpy as np
 import json
+import urllib.parse
 from sympy import symbols, Eq, parse_expr, linear_eq_to_matrix
 from sympy.parsing.sympy_parser import standard_transformations, implicit_multiplication_application
 from flask_cors import CORS
@@ -10,6 +11,12 @@ CORS(app)
 
 # Transformaciones para el parser de ecuaciones
 transformations = (standard_transformations + (implicit_multiplication_application,))
+
+def decode_equation(eq):
+    """Decodifica la ecuación reemplazando %3D por = y otros caracteres especiales"""
+    decoded = urllib.parse.unquote(eq)  # Decodifica %3D a =
+    decoded = decoded.replace(" ", "")  # Elimina espacios
+    return decoded
 
 @app.route('/jacobi', methods=['GET', 'POST'])
 def metodo_jacobi():
@@ -26,13 +33,14 @@ def metodo_jacobi():
             tol_error = data.get('tol_error')
             max_iter = data.get('max_iter', 100)
         else:
-            ecuaciones = request.args.getlist('ecuaciones[]')  # Usar 'ecuaciones[]' para GET
+            # Para GET, decodificar cada ecuación
+            ecuaciones = [decode_equation(eq) for eq in request.args.getlist('ecuaciones[]')]
             x0_str = request.args.get('x0')
             tol_error = request.args.get('tol_error', type=float)
             max_iter = request.args.get('max_iter', type=int, default=100)
 
-        # Depuración: Mostrar los parámetros obtenidos
-        print(f"Ecuaciones: {ecuaciones}")
+        # Depuración: Mostrar los parámetros obtenidos después de decodificar
+        print(f"Ecuaciones decodificadas: {ecuaciones}")
         print(f"x0: {x0_str}")
         print(f"Tolerancia: {tol_error}")
         print(f"Máximo de iteraciones: {max_iter}")
@@ -47,10 +55,11 @@ def metodo_jacobi():
             for eq in ecuaciones:
                 if "=" not in eq:
                     return jsonify({"error": f"La ecuación '{eq}' no contiene '='."}), 400
-                lado_izq, lado_der = eq.split("=")
-                expr_izq = parse_expr(lado_izq.replace(" ", ""), transformations=transformations)
-                expr_der = parse_expr(lado_der.replace(" ", ""), transformations=transformations)
+                lado_izq, lado_der = eq.split("=", 1)  # Split en el primer = solamente
+                expr_izq = parse_expr(lado_izq, transformations=transformations)
+                expr_der = parse_expr(lado_der, transformations=transformations)
                 sym_ecuaciones.append(Eq(expr_izq, expr_der))
+            
             # Extraer variables automáticamente y ordenarlas
             variables = sorted(set().union(*[eq.free_symbols for eq in sym_ecuaciones]), key=lambda v: str(v))
             variables = [str(var) for var in variables]
@@ -67,7 +76,8 @@ def metodo_jacobi():
         if len(ecuaciones) != len(variables):
             return jsonify({
                 "error": "El número de ecuaciones debe ser igual al número de variables.",
-                "detalle": f"Número de ecuaciones: {len(ecuaciones)}, Número de variables: {len(variables)}"
+                "detalle": f"Número de ecuaciones: {len(ecuaciones)}, Número de variables: {len(variables)}",
+                "variables_detectadas": variables
             }), 400
 
         # Convertir las ecuaciones a la forma matricial Ax = b
@@ -81,12 +91,18 @@ def metodo_jacobi():
 
         # Validar dimensiones de A, b y x0
         if A.shape[0] != A.shape[1] or A.shape[0] != b.shape[0] or b.shape[0] != x0.shape[0]:
-            return jsonify({"error": "Las dimensiones de la matriz A, el vector b y el vector x0 no coinciden."}), 400
+            return jsonify({
+                "error": "Las dimensiones no coinciden.",
+                "detalle": {
+                    "matriz_A": f"{A.shape[0]}x{A.shape[1]}",
+                    "vector_b": f"{b.shape[0]}",
+                    "vector_x0": f"{x0.shape[0]}"
+                }
+            }), 400
 
-        # Verificar si la matriz es diagonalmente dominante
+        # Verificar si la matriz es diagonalmente dominante (solo advertencia)
         diagonal_dominante = all(2 * abs(A[i, i]) >= np.sum(np.abs(A[i, :])) for i in range(A.shape[0]))
-        if not diagonal_dominante:
-            return jsonify({"error": "La matriz no es diagonalmente dominante. El método de Jacobi puede no converger."}), 400
+        advertencia = None if diagonal_dominante else "Advertencia: La matriz no es diagonalmente dominante. La convergencia no está garantizada."
 
         # Algoritmo de Jacobi
         n = len(b)
@@ -96,27 +112,53 @@ def metodo_jacobi():
         for iteracion in range(max_iter):
             x_nuevo = np.zeros_like(x)
             for i in range(n):
-                # Sumar A[i,j] * x[j] para j != i
                 suma = np.dot(A[i, :], x) - A[i, i] * x[i]
                 if A[i, i] == 0:
                     return jsonify({"error": f"División por cero en la diagonal (A[{i}, {i}] = 0)."}), 400
                 x_nuevo[i] = (b[i] - suma) / A[i, i]
 
             error = np.linalg.norm(x_nuevo - x, ord=np.inf)
+            residuo = np.linalg.norm(np.dot(A, x_nuevo) - b, ord=np.inf)
+            
+            # Guardar resultados de la iteración
             tabla.append({
                 "iteracion": iteracion + 1,
-                "x": [round(val, 4) for val in x_nuevo],
-                "error": round(error, 4)
+                "valores": {var: float(x_nuevo[i]) for i, var in enumerate(variables)},
+                "error": float(error),
+                "residuo": float(residuo)
             })
+
             if error < tol_error:
-                return jsonify({"tabla": tabla, "mensaje": "Convergencia alcanzada"})
+                return jsonify({
+                    "convergio": True,
+                    "iteraciones": iteracion + 1,
+                    "error_final": float(error),
+                    "residuo_final": float(residuo),
+                    "solucion": {var: float(x_nuevo[i]) for i, var in enumerate(variables)},
+                    "variables": variables,
+                    "matriz_A": A.tolist(),
+                    "vector_b": b.tolist(),
+                    "tabla": tabla,
+                    "advertencia": advertencia
+                })
+                
             x = x_nuevo.copy()
 
-        return jsonify({"tabla": tabla, "mensaje": "No se alcanzó la convergencia en el número máximo de iteraciones"})
+        return jsonify({
+            "convergio": False,
+            "iteraciones": max_iter,
+            "error_final": float(error),
+            "residuo_final": float(residuo),
+            "solucion": None,
+            "variables": variables,
+            "matriz_A": A.tolist(),
+            "vector_b": b.tolist(),
+            "tabla": tabla,
+            "advertencia": advertencia
+        })
 
     except Exception as e:
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5005, debug=True)

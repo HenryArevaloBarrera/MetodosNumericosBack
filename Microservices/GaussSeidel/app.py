@@ -85,9 +85,7 @@ def metodo_gauss_seidel():
 
         # Verificar si la matriz es diagonalmente dominante
         diagonal_dominante = all(2 * abs(A[i, i]) >= np.sum(np.abs(A[i, :])) for i in range(A.shape[0]))
-        if not diagonal_dominante:
-            return jsonify({"error": "La matriz no es diagonalmente dominante. El método de Gauss-Seidel puede no converger."}), 400
-
+        
         # Algoritmo de Gauss-Seidel
         n = len(b)
         x = x0.copy()
