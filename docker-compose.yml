@@ -54,3 +54,21 @@ services:
     volumes:
       - ./Microservices/GaussSeidel:/app
     restart: always
+
+  trapecio:
+    build: ./Microservices/Trapecio
+    container_name: metodo_trapecio
+    ports:
+      - "5007:5007"
+    volumes:
+      - ./Microservices/Trapecio:/app
+    restart: always
+
+  simpson:
+    build: ./Microservices/Simpson
+    container_name: metodo_simpson
+    ports:
+      - "5008:5008"
+    volumes:
+      - ./Microservices/Simpson:/app
+    restart: always
