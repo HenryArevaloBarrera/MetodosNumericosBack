@@ -35,14 +35,23 @@ def metodo_simpson():
         except Exception as e:
             return jsonify({"error": f"Error en la ecuación: {str(e)}"}), 400
 
-        # Método de Simpson
+        # Calcular la integral real (simbólica)
+        try:
+            integral_real = float(N(integrate(ecuacion, (x, a, b))))
+        except Exception as e:
+            return jsonify({"error": f"No se pudo calcular la integral exacta: {str(e)}"}), 400
+
+        # Método de Simpson y datos para graficar
         h = (b - a) / n
         suma = 0
-
+        xi_list = []
+        fxi_list = []
         try:
             for i in range(n + 1):
                 xi = a + i * h
                 fxi = N(ecuacion.subs(x, xi))
+                xi_list.append(float(xi))
+                fxi_list.append(float(fxi))
                 if i == 0 or i == n:
                     suma += fxi
                 elif i % 2 == 0:
@@ -52,9 +61,18 @@ def metodo_simpson():
         except Exception as e:
             return jsonify({"error": f"Error al evaluar la función: {str(e)}"}), 400
 
-        resultado = (h / 3) * suma
+        resultado = float((h / 3) * suma)
+        error = abs(integral_real - resultado)
 
-        return jsonify({"resultado": float(resultado)})
+        return jsonify({
+            "integral_simpson": resultado,
+            "integral_real": integral_real,
+            "error_absoluto": error,
+            "h": float(h),
+            "n": n,
+            "xi": xi_list,
+            "fxi": fxi_list
+        })
 
     except Exception as e:
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500

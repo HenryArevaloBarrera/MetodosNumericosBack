@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from sympy import symbols, N
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
 from flask_cors import CORS
+import numpy as np
 
 app = Flask(__name__)
 CORS(app)
@@ -92,7 +93,21 @@ def metodo_biseccion():
             if fxm == 0:
                 break
 
-        return jsonify(tabla)
+        # --- DATOS PARA EL GRÁFICO ---
+        grafico_x = np.linspace(float(request.args.get('xo')), float(request.args.get('xu')), 100)
+        grafico_y = []
+        for val in grafico_x:
+            try:
+                yval = float(N(ecuacion.subs(x, val)))
+            except:
+                yval = None
+            grafico_y.append(yval)
+
+        return jsonify({
+            "tabla": tabla,
+            "grafico_x": grafico_x.tolist(),
+            "grafico_y": grafico_y
+        })
 
     except Exception as e:
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500

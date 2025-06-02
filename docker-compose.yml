@@ -72,3 +72,21 @@ services:
     volumes:
       - ./Microservices/Simpson:/app
     restart: always
+
+  epde:
+    build: ./Microservices/EDPE
+    container_name: metodo_edpe
+    ports:
+      - "5009:5009"
+    volumes:
+      - ./Microservices/EDPE:/app
+    restart: always
+
+  euler:
+    build: ./Microservices/Euler
+    container_name: metodo_euler
+    ports:
+      - "5010:5010"
+    volumes:
+      - ./Microservices/Euler:/app
+    restart: always

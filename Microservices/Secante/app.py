@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify
-from sympy import symbols, diff
+from sympy import symbols, diff, N
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
 from flask_cors import CORS
+import numpy as np
 
 app = Flask(__name__)
 CORS(app)
@@ -38,6 +39,8 @@ def metodo_secante():
         x_actual = x0
         x_anterior = x1
         tabla = []
+        x_hist = [x0, x1]  # Guardar los puntos utilizados
+        fx_hist = [float(N(f.subs(x, x0))), float(N(f.subs(x, x1)))]
 
         # Algoritmo de la secante
         while error >= tol_error:
@@ -67,6 +70,10 @@ def metodo_secante():
                     "error": round(error, 4)  # Redondear a 4 decimales
                 })
 
+                # Guardar historial para gráfica
+                x_hist.append(x_siguiente)
+                fx_hist.append(float(N(f.subs(x, x_siguiente))))
+
                 # Actualizar los valores de x para la siguiente iteración
                 x_anterior = x_actual
                 x_actual = x_siguiente
@@ -83,8 +90,29 @@ def metodo_secante():
             except Exception as e:
                 return jsonify({"error": f"Error durante la iteración: {str(e)}"}), 400
 
-        # Retornar la tabla de iteraciones
-        return jsonify(tabla)
+        # Para la gráfica: evaluamos f(x) en un rango que cubra todos los valores de x_hist
+        min_x = min(x_hist)
+        max_x = max(x_hist)
+        if min_x == max_x:
+            min_x -= 1
+            max_x += 1
+        grafico_x = np.linspace(min_x, max_x, 100)
+        grafico_y = []
+        for val in grafico_x:
+            try:
+                yval = float(N(f.subs(x, val)))
+            except:
+                yval = None
+            grafico_y.append(yval)
+
+        # Retornar la tabla de iteraciones y los datos de la gráfica
+        return jsonify({
+            "tabla": tabla,
+            "grafico_x": grafico_x.tolist(),
+            "grafico_y": grafico_y,
+            "x_hist": x_hist,
+            "fx_hist": fx_hist
+        })
 
     except Exception as e:
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500

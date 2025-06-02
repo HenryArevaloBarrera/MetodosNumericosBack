@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from sympy import symbols, N
+from sympy import symbols, N, integrate
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
 from flask_cors import CORS
 
@@ -35,15 +35,24 @@ def metodo_trapecio():
         except Exception as e:
             return jsonify({"error": f"Error en la ecuación: {str(e)}"}), 400
 
-        # Calcular la integral por el método del trapecio
+        # Calcular la integral real (simbólica)
+        try:
+            integral_real = float(N(integrate(ecuacion, (x, a, b))))
+        except Exception as e:
+            return jsonify({"error": f"No se pudo calcular la integral exacta: {str(e)}"}), 400
+
+        # Calcular la integral por el método del trapecio y recolectar datos para graficar
         try:
             h = (b - a) / n
             suma = 0.0
+            xi_list = []
+            fxi_list = []
 
-            # Evaluar en los puntos
             for i in range(n + 1):
                 xi = a + i * h
                 fxi = N(ecuacion.subs(x, xi))
+                xi_list.append(float(xi))
+                fxi_list.append(float(fxi))
 
                 # Ponderar los extremos
                 if i == 0 or i == n:
@@ -51,16 +60,20 @@ def metodo_trapecio():
                 else:
                     suma += 2 * fxi
 
-            # Aplicar la fórmula del trapecio
-            integral = (h / 2) * suma
+            integral_trapecio = float((h / 2) * suma)
+            error = abs(integral_real - integral_trapecio)
 
         except Exception as e:
             return jsonify({"error": f"Error al calcular la integral: {str(e)}"}), 400
 
         return jsonify({
-            "integral": float(integral),
+            "integral_trapecio": integral_trapecio,
+            "integral_real": integral_real,
+            "error_absoluto": error,
             "h": float(h),
-            "n": n
+            "n": n,
+            "xi": xi_list,
+            "fxi": fxi_list
         })
 
     except Exception as e:
